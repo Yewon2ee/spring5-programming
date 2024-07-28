@@ -207,7 +207,8 @@ public class MemberService {
     @Qualifier("memberPrinter1")
     private MemberPrinter memberPrinter;
 
-}```
+}
+```
 
 
 2. 상속 구조 활용하기 
