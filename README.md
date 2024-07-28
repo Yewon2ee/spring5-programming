@@ -16,7 +16,7 @@
 ### 2. @Autowired 애노테이션을 이용한 의존 자동 주입
 >**자동 주입 방법**: 의존을 주입할 대상에 @Autowired 애노테이션을 붙여서 스프링이 자동으로 빈을 주입하도록 한다.
 
-필드, 메서드 등에 주입할 수 있다. 
+필드, 메서드,생성자,세터 등에 주입할 수 있다. 
 
 
 
@@ -50,7 +50,7 @@ public class ChangePasswordService {
 
 #### if 일치하는 빈이 없다면?
 
-> `@Autowired` 애노테이션을 사용했지만 일치하는 빈이 없는 경우,스프링은 `NoSuchBeanDefinitionException`을 발생시킴. `MemberDao` 타입의 빈이 스프링 컨테이너에 등록되지 않았기 때문이다.
+> `@Autowired` 애노테이션을 사용했지만 일치하는 빈이 없는 경우,스프링은 예외를 발생시킴. `MemberDao` 타입의 빈이 스프링 컨테이너에 등록되지 않았기 때문이다.
 
 
 
@@ -72,24 +72,6 @@ public class ChangePasswordService {
 
 
 
-```java
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
-
-public class ChangePasswordService {
-
-    private final MemberDao memberDao;
-
-    @Autowired
-    public ChangePasswordService(@Qualifier("myMemberDao") MemberDao memberDao) {
-        this.memberDao = memberDao; 
-    }
-
-    public void changePassword(String userId, String newPassword) {
-        memberDao.updatePassword(userId, newPassword);
-    }
-}
-```
 
 
 #### @Qualifier의 두 가지 사용 위치
@@ -140,7 +122,26 @@ public class ChangePasswordService {
 ```
 
 -메서드 주입: 생성자 또는 세터 메서드의 파라미터에 @Qualifier를 사용하여 빈을 주입가능 
-*맨 위 예시 참고
+
+ ```java
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.beans.factory.annotation.Qualifier;
+ 
+ public class ChangePasswordService {
+ 
+    private final MemberDao memberDao;
+ 
+     @Autowired
+     public ChangePasswordService(@Qualifier("myMemberDao") MemberDao memberDao) {
+        this.memberDao = memberDao; 
+     }
+ 
+     public void changePassword(String userId, String newPassword) {
+         memberDao.updatePassword(userId, newPassword);
+     }
+ }
+ ```
+
 
 
 
@@ -178,7 +179,7 @@ public class AppConfig {
     }
 
     @Bean
-    public MemberPrinter memberPrinter2() {
+    public MemberSummaryPrinter memberPrinter2() {
         return new MemberSummaryPrinter();
     }
 }
@@ -193,7 +194,7 @@ public class MemberService {
 }
 ```
 
-겉으로는 다른 타입이여서 문제 없을 거 같지만 @Autowired를 사용하면, 실제로는 MemberSummaryPrinter클래스는 MemberPrinter에 할당될 수 있어서 스프링이 두 개의 빈 중 어느 것을 주입해야할 지 모호해지는 문제가 발생 
+겉으로는 다른 타입이여서 문제 없을 거 같지만 @Autowired를 사용하면, 실제로는 MemberSummaryPrinter클래스는 MemberPrinter의 자식클래스여서 MemberPrinter에 할당될 수 있어서 스프링이 두 개의 빈 중 어느 것을 주입해야할 지 모호해지는 문제가 발생 
 
 
 > **두 가지 해결 방법**:
@@ -210,15 +211,16 @@ public class MemberService {
 
 
 2. 상속 구조 활용하기 
-
+```java
 @Configuration
 public class AppConfig {
 
     @Bean
-    public MemberPrinter memberPrinter() {
+    public MemberSummaryPrinter memberSummaryPrinter() {
         return new MemberSummaryPrinter();
     }
 }
+
 ```
 MemberSummaryPrinter 타입은 하나만 존재하므로 MemberSummaryPrinter 빈을 자동 주입 받도록 코드를 수정하면 자동 주입 대상이 두 개여서 발생하는 문제를 해결할 수있음.
 
@@ -230,13 +232,13 @@ MemberSummaryPrinter 타입은 하나만 존재하므로 MemberSummaryPrinter �
 **기본값 (required=true)**: 빈이 필수로 주입되어야 하며, 빈이 없으면 예외 발생.
 
 **빈이 없어도 되는 경우(빈 주입이 선택적인 경우)**
-**1.required=false** 쓰기:  빈이 없어도 애플리케이션이 정상 작동하며, 빈이 없으면 필드가 null로 설정됨.
+**1.required=false** : 이렇게 쓰면 빈이 없어도 애플리케이션이 정상 작동한다. 대신 빈이 없으면 해당 메서드는 호출되지 않음
 ```java
 @Autowired(required=false)
 private MyDependency myDependency; 
 ```
 
-**2.@Nullable**: 빈이 없을 경우 필드에 null이 할당됨.
+**2.@Nullable**:빈이 있으면 빈 전달하고, 빈이 없을 경우 필드에 null이 할당됨. 상 메서드는 호출됨
 ```java
 import javax.annotation.Nullable;
 
@@ -244,14 +246,16 @@ import javax.annotation.Nullable;
 @Nullable
 private MyDependency myDependency;
 ```
-**3.@Optional**: 빈이 없으면 필드가 null로 설정됨.
+**자동 주입 대상 타입이 Optional인 경우**: 일치하는 빈 있으면 해당 빈 값 갖는 Optional을 인자로 전달 없으면 값 없는 Optional을 인자로 전달
 ```java
-import org.springframework.beans.factory.annotation.Optional;
-
 @Autowired
-@Optional
-private MyDependency myDependency; // 빈이 없어도 null로 설정됨
-
+public void setDateFormatter(Optional</DateTimeFormatter>formatterOpt){
+	if(formatterOpt.isPresent()){
+  		this.dateTimeFormatter = formatterOpt.get();
+  } else{
+  		this.dateTimeFormatter = null;
+  }
+}
 ```
 
 
@@ -312,13 +316,12 @@ basePackages 속성으로 지정한 패키지 내의 빈들만 스캔하여 등�
 
 
 ### 4. 스캔 대상에서 제외하거나 포함하기
-> excludeFilters - 특정 클래스를 스캔에서 제외함.
- FilterType -
-ANNOTATION: 특정 애노테이션이 붙은 클래스를 스캔에서 제외함
-ASSIGNABLE_TYPE: 특정 타입을 스캔에서 제외함
+> excludeFilters 속성을 사용하면 특정 대상을 자동등록 대상에서 제외할 수있다.
+> 
 
 예시로 보자
 1.애노테이션 필터
+특정 애노테이션이 붙은 타입을 제외함
 ```java
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
@@ -333,6 +336,7 @@ public class AppConfig {
 }
 ```
 2.타입 필터
+특정 타입 제외
 ```java
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
@@ -363,8 +367,13 @@ import org.springframework.context.annotation.FilterType;
 public class AppConfig {
 }
 ```
+4.정규표현식 필터:
+spring으로 시작하고 Dao로 끝나는 특 패턴을 사용하여 클래스를 스캔에서 제외함
 
-
+```java
+@ComponentScan(basePackages = {"spring"},
+ excludeFilters = @Fiter(type = FilterType.REGEX,pattern = "spring\\..*Dao"))
+```
 > 4.1 기본 스캔 대상
  @Component, @Service, @Repository, @Controller 등 스프링의 스테레오타입 애노테이션이 붙은 클래스들
 
@@ -376,6 +385,4 @@ public class AppConfig {
 예시: 두 개의 @Component 빈이 같은 이름을 가진 경우, 스프링은 어떤 빈을 사용할지 결정하지 못할 수 있다. 빈 이름을 명시적으로 설정하여 문제를 해결한다.
 
 > 5.2 수동 등록한 빈과 충돌
- XML 설정 파일에서 수동 등록한 빈과 @Component로 등록된 빈이 충돌할 수 있다. 이 경우 빈의 정의를 명확히 하여 충돌을 방지한다.
-
-예시: XML 설정 파일에서 등록한 빈과 @Component로 등록된 빈 이름이 같은 경우 수동 등록한 빈이 우선되어 하나만 존재한다.
+ XML 설정 파일에서 수동 등록한 빈과 @Component로 등록된 빈이 충돌할 수 있다. 이름이 같은 경우는 수동으로 이름을 등록한 쪽이 살아남는다..  이름이 다른 경우는 둘 다 생성되니까 잘 표시해서 잘 골라쓰자. 
