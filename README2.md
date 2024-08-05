@@ -1,4 +1,4 @@
-![image](https://github.com/user-attachments/assets/f3b74ac4-b2bb-4b44-b15f-5f70deb39dee)# Chapter 10: 스프링 MVC 프레임워크 동작 방식
+# Chapter 10: 스프링 MVC 프레임워크 동작 방식
 
 ## 1.스프링 MVC 핵심 구성 요소와 각 요소 간의 관계
 
